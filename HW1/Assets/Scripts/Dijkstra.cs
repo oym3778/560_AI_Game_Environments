@@ -17,7 +17,7 @@ public class Dijkstra : MonoBehaviour
     public static Color openColor = Color.cyan;
     public static Color closedColor = Color.blue;
     public static Color activeColor = Color.yellow;
-    public static Color pathColor = Color.yellow;
+    public static Color pathColor = Color.green;
 
     // The stopwatch for timing search.
     private static Stopwatch watch = new Stopwatch();
@@ -77,7 +77,6 @@ public class Dijkstra : MonoBehaviour
                 //UnityEngine.Debug.Log("Search Failed render");
                 //from = hit.collider.gameObject;
                 renderer = current.node.gameObject.GetComponentInChildren<SpriteRenderer>();
-                // Turn the tile color to magenta to visualize the selection.
                 renderer.material.color = activeColor;
             }
 
@@ -93,13 +92,14 @@ public class Dijkstra : MonoBehaviour
 
             // --Otherwise get its outgoing connections.--
             connections = current.node.Connections;
-            print("connections Count: " + connections.Count);
-            NodeRecord endNodeRecord = null;
+            
             foreach (GameObject connection in connections.Values)
             {
+                NodeRecord endNodeRecord = null;
                 print("Open: " + open.Count + "\nClosed: " + closed.Count);
                 // --Get the cost estimate for the end node.--
-                Node endNode = connection.GetComponent<Node>();
+                Node endNode = connection.GetComponent<Node>(); // this is the to node
+                // add a from node
                 float endNodeCost = current.costSoFar + 1f; // connection.getCost() = 1  TODO figure out how to use a cost per Node
 
 
@@ -116,8 +116,8 @@ public class Dijkstra : MonoBehaviour
                     // -- Here we find the record in the open list --
                     // -- corresponding to the endNode. --
                     endNodeRecord = Find(open, endNode);
-                    endNodeRecord.node = endNode;
-                    if (endNodeRecord.costSoFar <= endNodeCost) // TODO This may cause an error... endNodeRecord.costSoFar != endNodeRecord.cost in the book
+                    // endNodeRecord.node = endNode;
+                    if (1f <= endNodeCost) // TODO This may cause an error... endNodeRecord.costSoFar != endNodeRecord.cost in the book
                     {
                         continue;
                     }
@@ -132,8 +132,8 @@ public class Dijkstra : MonoBehaviour
 
                 // -- We�re here if we need to update the node. Update the --
                 // -- cost and connection. --
-                endNodeRecord.costSoFar = endNodeCost;
-                // endNodeRecord.connection = connection; TODO this may cause some error...
+                endNodeRecord.costSoFar = endNodeCost;              
+                endNodeRecord.fromNode = current; //TODO this may cause some error...
 
                 // --If displaying costs, update the tile display.--
                 if (displayCosts)
@@ -162,27 +162,25 @@ public class Dijkstra : MonoBehaviour
                 // --Pause the animation to show the new open tile.--
                 yield return new WaitForSeconds(waitTime);
 
-                // -- We�ve finished looking at the connections for the current --
-                // -- node, so add it to the closed list and remove it from the --
-                // -- open list. --
-
-
-                // --If coloring tiles, update the closed tile color.--
-                if (colorTiles)
-                {
-                    // Grab the renderer of the clicked tile.
-                    renderer = current.node.gameObject.GetComponentInChildren<SpriteRenderer>();
-                    // Turn the tile color to magenta to visualize the selection.
-                    renderer.material.color = closedColor;
-                }
-
             }
 
+            // -- We�ve finished looking at the connections for the current --
+            // -- node, so add it to the closed list and remove it from the --
+            // -- open list. --
             open.Remove(current);
             closed.Add(current);
+
+            // --If coloring tiles, update the closed tile color.--
+            if (colorTiles)
+            {
+                // Grab the renderer of the clicked tile.
+                renderer = current.node.gameObject.GetComponentInChildren<SpriteRenderer>();
+                // Turn the tile color to magenta to visualize the selection.
+                renderer.material.color = closedColor;
+            }
         }
 
-   
+
 
 
         // Stops the stopwatch.
@@ -205,13 +203,30 @@ public class Dijkstra : MonoBehaviour
         }
         else
         {
+            path = new Stack<NodeRecord>();
             // --Work back along the path, accumulating connections.--
-            //while (current.node != start)
-            //{
+            while (current.node != start.GetComponent<Node>())
+            {
+                if (current.node == null) { print("Current node looping back got null, something wrong with fromNode"); }
+                path.Push(current.fromNode);
+                current = current.fromNode;
 
-            //}
+
+                // --If coloring tiles, update the open tile color.--
+                if (colorTiles)
+                {
+                    // Grab the renderer of the clicked tile.
+                    renderer = current.node.gameObject.GetComponentInChildren<SpriteRenderer>();
+                    // Turn the tile color to magenta to visualize the selection.
+                    renderer.material.color = pathColor;
+                }
+
+                // -- Pause the animation to show the new path tile.
+                // --This is the actual C# command to use.
+                yield return new WaitForSeconds(waitTime);
+            }
             //UnityEngine.Debug.Log("Path Length: " + path.Count.ToString());
-            UnityEngine.Debug.Log("Path Length: 0");
+            UnityEngine.Debug.Log("Path Length: " + path.Count.ToString());
         }
 
         yield return null;
@@ -290,6 +305,7 @@ public class NodeRecord
     public GameObject Tile { get; set; } = null;
     // Set the other class properties here.
     public Node node { get; set; } = null;
+    public NodeRecord fromNode { get; set; } = null;
     public float costSoFar { get; set; } = 0;
     public float cost { get; set; } = 1;
     private Dictionary<Direction, NodeRecord> connections = new Dictionary<Direction, NodeRecord>();
