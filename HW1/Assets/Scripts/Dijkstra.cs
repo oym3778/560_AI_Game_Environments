@@ -34,16 +34,7 @@ public class Dijkstra : MonoBehaviour
 
         // Add your Dijkstra code here.
 
-        // ------------------------------------------------------------------------------------------------------
-        // start(From-->GraphInterface)-->Has a Node Script 
-        // end(To-->GraphInterface)-->Has a Node Script
-
-        // pathfinding list is a specialized data structure that acts
-        // very much like a regular list. It holds a set of NodeRecord
-
-        // TODO Be sure to include the Debug and Yield statements to get the right outputs in Unity.
-        // ------------------------------------------------------------------------------------------------------
-
+        int nodesExpanded = 0;
 
         // --Initialize the record for the start node.--
         NodeRecord startRecord = new NodeRecord();
@@ -58,7 +49,8 @@ public class Dijkstra : MonoBehaviour
         List<NodeRecord> open = new List<NodeRecord>();
         open.Add(startRecord);
         List<NodeRecord> closed = new List<NodeRecord>();
-
+        nodesExpanded++;
+        
         // For coloring
         SpriteRenderer renderer = start.GetComponentInChildren<SpriteRenderer>();
 
@@ -67,7 +59,7 @@ public class Dijkstra : MonoBehaviour
         // --Iterate through processing each node.--
         while (open.Count > 0)
         {
-
+            //nodesExpanded++;
             // --Find the smallest element in the open list.--
             current = SmallestElement(open);
             // --If coloring tiles, update the tile color.--
@@ -86,7 +78,6 @@ public class Dijkstra : MonoBehaviour
             // --If it is the goal node, then terminate.--
             if (current.node == end.GetComponent<Node>())
             {
-                print("Current Node == End Node");
                 break;
             }
 
@@ -95,19 +86,17 @@ public class Dijkstra : MonoBehaviour
             
             foreach (GameObject connection in connections.Values)
             {
+                
                 NodeRecord endNodeRecord = null;
-                print("Open: " + open.Count + "\nClosed: " + closed.Count);
                 // --Get the cost estimate for the end node.--
                 Node endNode = connection.GetComponent<Node>(); // this is the to node
                 // add a from node
-                float endNodeCost = current.costSoFar + 1f; // connection.getCost() = 1  TODO figure out how to use a cost per Node
+                float endNodeCost = current.costSoFar + 1f;
 
 
                 // -- Skip if the node is closed
                 if (Contains(closed, endNode))
                 {
-                    //endNodeRecord.costSoFar = endNodeCost;
-                    //endNodeRecord.Tile = current.Tile; // Keep track of the path
                     continue;
                 }
                 // --.. or if it is open and we�ve found a worse route.--
@@ -116,8 +105,7 @@ public class Dijkstra : MonoBehaviour
                     // -- Here we find the record in the open list --
                     // -- corresponding to the endNode. --
                     endNodeRecord = Find(open, endNode);
-                    // endNodeRecord.node = endNode;
-                    if (1f <= endNodeCost) // TODO This may cause an error... endNodeRecord.costSoFar != endNodeRecord.cost in the book
+                    if (1f <= endNodeCost)
                     {
                         continue;
                     }
@@ -132,6 +120,7 @@ public class Dijkstra : MonoBehaviour
 
                 // -- We�re here if we need to update the node. Update the --
                 // -- cost and connection. --
+                nodesExpanded++;
                 endNodeRecord.costSoFar = endNodeCost;              
                 endNodeRecord.fromNode = current; //TODO this may cause some error...
 
@@ -187,7 +176,7 @@ public class Dijkstra : MonoBehaviour
         watch.Stop();
 
         UnityEngine.Debug.Log("Seconds Elapsed: " + (watch.ElapsedMilliseconds / 1000f).ToString());
-        UnityEngine.Debug.Log("Nodes Expanded: " + "print the number of nodes expanded here.");
+        UnityEngine.Debug.Log("Nodes Expanded: " + nodesExpanded);
 
         // Reset the stopwatch.
         watch.Reset();
@@ -207,7 +196,7 @@ public class Dijkstra : MonoBehaviour
             // --Work back along the path, accumulating connections.--
             while (current.node != start.GetComponent<Node>())
             {
-                if (current.node == null) { print("Current node looping back got null, something wrong with fromNode"); }
+                if (current.node == null) { UnityEngine.Debug.Log("Current node looping back got null, something wrong with fromNode"); }
                 path.Push(current.fromNode);
                 current = current.fromNode;
 
@@ -314,25 +303,6 @@ public class NodeRecord
     {
         return node.Connections;
     }
-
-    /*    public Dictionary<Direction, GameObject> Connections()
-        {
-            return node.Connections;//new Dictionary<Direction, GameObject>();
-        }*/
-
-    /*// Grab the node scripts attached to the two tile game objects.
-    Node fromNode = from.GetComponent<Node>();
-    Node toNode = to.GetComponent<Node>();
-
-    // A method for debugging connections.
-    // Also demonstrated how to enumerate the connected game world tiles in Connections.
-    public void printConnections()
-    {
-        // Iterates through the different values in the direction enum (Up, Down, Left, Right).
-        foreach (Direction direction in Enum.GetValues(typeof(Direction)))
-            // If there is a connection in that direction, prints this tile's name, the connection direction, and the connected tile's name.
-            if (Connections.ContainsKey(direction)) Debug.Log(name + " " + direction + " " + Connections[direction].name);
-    }*/
 
     // Sets the tile's color.
     public void ColorTile(Color newColor)
