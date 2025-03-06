@@ -343,6 +343,14 @@ public class AStar : MonoBehaviour
 
     public static float CrossProduct (GameObject start, GameObject tile, GameObject goal)
     {
-        return 0f;
+        float dx1 = tile.transform.position.x - goal.transform.position.x;
+        float dy1 = tile.transform.position.y - goal.transform.position.y;
+        float dx2 = start.transform.position.x - goal.transform.position.x;
+        float dy2 = start.transform.position.y - goal.transform.position.y;
+
+        float cross = Mathf.Abs(dx1 * dy2 - dx2 * dy1);
+
+        return Manhattan(start, tile, goal) + cross * 0.001f;
+
     }
 }
