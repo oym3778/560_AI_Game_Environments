@@ -5,6 +5,7 @@ using UnityEngine;
 using System;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine.Profiling;
+using UnityEngine.UIElements;
 
 /// <summary>
 /// Performs search using A*.
@@ -38,7 +39,11 @@ public class AStar : MonoBehaviour
         // Node class we just use a Connections Method in Node records
         // startRecord.connection = null
         startRecord.costSoFar = 0;
+        startRecord.estimatedTotalCost = heuristic.Invoke(start, startRecord.Tile, end);
 
+        // Retrieves the number used to scale the game world tiles.
+        // Your C# code should look similar but maybe not exact.
+        float scale = startRecord.Tile.transform.localScale.x;
         // --Initialize the open and closed lists.--
         List<NodeRecord> open = new List<NodeRecord>();
         open.Add(startRecord);
@@ -53,7 +58,7 @@ public class AStar : MonoBehaviour
         // --Iterate through processing each node.--
         while (open.Count > 0)
         {
-            //nodesExpanded++;
+
             // --Find the smallest element in the open list.--
             current = SmallestElement(open);
             // --If coloring tiles, update the tile color.--
@@ -80,29 +85,54 @@ public class AStar : MonoBehaviour
 
             foreach (GameObject connection in connections.Values)
             {
-
+                float endNodeHeuristic;
                 NodeRecord endNodeRecord = null;
                 // --Get the cost estimate for the end node.--
-                Node endNode = connection.GetComponent<Node>(); // this is the to node
-                // add a from node
-                float endNodeCost = current.costSoFar + 1f;
+                Node endNode = connection.GetComponent<Node>(); // this is the toNode
+                // --Get the cost estimate for the end node. --
+                // --The cost of each connection is equal to the scale. --
+                float endNodeCost = current.costSoFar + scale;
 
 
                 // -- Skip if the node is closed
                 if (Contains(closed, endNode))
                 {
-                    continue;
+                    // Here we find the record in the closed list
+                    // corresponding to the endNode.
+                    endNodeRecord = Find(closed, endNode);
+
+                    // If we didn’t find a shorter route, skip.
+                    if (endNodeRecord.costSoFar <= endNodeCost)
+                    {
+                        continue;
+                    }
+
+                    //Otherwise, remove it from the closed list.
+                    closed.Remove(endNodeRecord);
+
+                    // We can use the node’s old cost values
+                    // to calculate its heuristic value without
+                    // calling the possibly expensive function.
+                    endNodeHeuristic = endNodeRecord.estimatedTotalCost - endNodeRecord.costSoFar;
+
                 }
-                // --.. or if it is open and we�ve found a worse route.--
+                // Skip if the node is open and we’ve not found
+                // a better route.
                 else if (Contains(open, endNode))
                 {
                     // -- Here we find the record in the open list --
                     // -- corresponding to the endNode. --
                     endNodeRecord = Find(open, endNode);
+
+                    // If our route is no better, skip.
                     if (1f <= endNodeCost)
                     {
                         continue;
                     }
+
+                    // Again, calculate heuristic.
+                    endNodeHeuristic = endNodeRecord.estimatedTotalCost - endNodeRecord.costSoFar;
+
                 }
                 // --Otherwise we know we�ve got an unvisited node,--
                 // --so make a record for it.--
@@ -110,13 +140,23 @@ public class AStar : MonoBehaviour
                 {
                     endNodeRecord = new NodeRecord();
                     endNodeRecord.node = endNode;
+
+                    // Calculate heuristic using function.
+                    endNodeHeuristic = heuristic.Invoke(start, endNode.gameObject, end);
                 }
 
                 // -- We�re here if we need to update the node. Update the --
-                // -- cost and connection. --
+                // -- cost, ESTIMATE, and connection. --
                 nodesExpanded++;
+                //endNodeRecord.costSoFar = endNodeCost;
+                //endNodeRecord.fromNode = current;
+
                 endNodeRecord.costSoFar = endNodeCost;
-                endNodeRecord.fromNode = current; //TODO this may cause some error...
+                endNodeRecord.fromNode = current;
+                endNodeHeuristic = endNodeCost + endNodeHeuristic;
+
+                endNodeRecord.estimatedTotalCost = endNodeHeuristic; // the instructions didn't have this....
+
 
                 // --If displaying costs, update the tile display.--
                 if (displayCosts)
@@ -171,7 +211,7 @@ public class AStar : MonoBehaviour
         watch.Stop();
 
         UnityEngine.Debug.Log("Seconds Elapsed: " + (watch.ElapsedMilliseconds / 1000f).ToString());
-        UnityEngine.Debug.Log("Nodes Expanded: " + "print the number of nodes expanded here.");
+        UnityEngine.Debug.Log("Nodes Expanded: " + nodesExpanded);
 
         // Reset the stopwatch.
         watch.Reset();
@@ -268,14 +308,14 @@ public class AStar : MonoBehaviour
     /// <returns></returns>
     private static NodeRecord SmallestElement(List<NodeRecord> records)
     {
-        float lowestCost = records[0].costSoFar;
+        float lowestCost = records[0].estimatedTotalCost;
         NodeRecord lowestNodeRecord = records[0];
 
         foreach (NodeRecord nodeRecord in records)
         {
-            if (nodeRecord.costSoFar < lowestCost)
+            if (nodeRecord.estimatedTotalCost < lowestCost)
             {
-                lowestCost = nodeRecord.costSoFar;
+                lowestCost = nodeRecord.estimatedTotalCost;
                 lowestNodeRecord = nodeRecord;
             }
             // code block to be executed
@@ -289,17 +329,16 @@ public class AStar : MonoBehaviour
 
     public static float Uniform (GameObject start, GameObject tile, GameObject goal)
     {
-        /*
-        Heuristic uniform = null;
-        uniform.Invoke(start, tile, goal);
-        */
-
         return 0f;
     }
 
     public static float Manhattan (GameObject start, GameObject tile, GameObject goal)
     {
-        return 0f;
+        // startRecord.Tile.transform.localScale.x;
+        float dx = Mathf.Abs(tile.transform.position.x - goal.transform.position.x);
+        float dy = Mathf.Abs(tile.transform.position.y - goal.transform.position.y);
+
+        return dx + dy;
     }
 
     public static float CrossProduct (GameObject start, GameObject tile, GameObject goal)

@@ -7,11 +7,13 @@ public class NodeRecord
 {
     // The tile game object.
     public GameObject Tile { get; set; } = null;
-    // Set the other class properties here.
     public Node node { get; set; } = null;
     public NodeRecord fromNode { get; set; } = null;
-    public float costSoFar { get; set; } = 0;
-    public float cost { get; set; } = 1;
+    public float costSoFar { get; set; } = 0f;
+    public float cost { get; set; } = 1f;
+    public float estimatedTotalCost { get; set; } = 0f;
+
+
     private Dictionary<Direction, NodeRecord> connections = new Dictionary<Direction, NodeRecord>();
 
     public Dictionary<Direction, GameObject> getConnections()
