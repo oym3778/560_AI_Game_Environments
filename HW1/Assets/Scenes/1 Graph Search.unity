@@ -278,8 +278,8 @@ MonoBehaviour:
   waitTime: 0
   searchType: 0
   heuristicType: 2
-  colorTiles: 0
-  displayCosts: 0
+  colorTiles: 1
+  displayCosts: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
