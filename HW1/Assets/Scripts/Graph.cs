@@ -144,8 +144,20 @@ public class Graph : MonoBehaviour
             SpriteRenderer rend = newTile.GetComponentInChildren<SpriteRenderer>();
 
             // Set both the original color variable and the renderer to grey.
-            rend.material.color = Color.grey;
-            newNode.OriginalColor = Color.grey;
+            rend.material.color = new Color(0.36f, 0.60f, 0.27f, 1.0f);
+            newNode.OriginalColor = new Color(0.36f, 0.60f, 0.27f, 1.0f);
+        }
+        else
+        {
+            // Grab the node script.
+            Node newNode = newTile.GetComponent<Node>();
+
+            // Grab the renderer.
+            SpriteRenderer rend = newTile.GetComponentInChildren<SpriteRenderer>();
+
+            // Set both the original color variable and the renderer to grey.
+            rend.material.color = new Color(0.42f, 0.67f, 0.31f, 1.0f);
+            newNode.OriginalColor = new Color(0.42f, 0.67f, 0.31f, 1.0f);
         }
 
         // Return the generated tile.

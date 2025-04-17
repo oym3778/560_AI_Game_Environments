@@ -61,6 +61,7 @@ public class AStar : MonoBehaviour
 
             // --Find the smallest element in the open list.--
             current = SmallestElement(open);
+            current.Tile = current.node.gameObject;
             // --If coloring tiles, update the tile color.--
             if (colorTiles)
             {
@@ -229,7 +230,7 @@ public class AStar : MonoBehaviour
         }
         else
         {
-            path = new Stack<NodeRecord>();
+            //path = new Stack<NodeRecord>();
             // --Work back along the path, accumulating connections.--
             while (current.node != start.GetComponent<Node>())
             {

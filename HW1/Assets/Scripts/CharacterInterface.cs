@@ -78,8 +78,10 @@ public class CharacterInterface : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        // Run the core coroutine.
-        StartCoroutine(HandleInput());
+        if (Input.GetMouseButtonDown(0) && !searching)
+        {
+            StartCoroutine(HandleInput());
+        }
     }
 
     // A coroutine that handles input from the user and starts search.
@@ -146,8 +148,8 @@ public class CharacterInterface : MonoBehaviour
                     }
 
                     // Pass the final path to the character.
+                    //character.Path = new Stack<NodeRecord>(path);
                     character.Path = path;
-
                     // Search is now over.
                     searching = false;
                 }

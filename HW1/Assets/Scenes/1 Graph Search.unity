@@ -246,8 +246,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   tile: {fileID: 7082161413745446940, guid: 8b12cf89ca8eae143bf6f79e4a3fd2ea, type: 3}
-  scale: 1
-  obstacleProbability: 0
+  scale: 3
+  obstacleProbability: 0.15
 --- !u!4 &625743947
 Transform:
   m_ObjectHideFlags: 0
