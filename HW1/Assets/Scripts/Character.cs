@@ -4,7 +4,8 @@ using UnityEngine;
 
 /// <summary>
 /// Moves a character like Snake: follows a precomputed path when available,
-/// otherwise continues moving in its current facing direction.
+/// otherwise continues moving in its current facing direction,
+/// and colors each tile it visits.
 /// </summary>
 public class Character : MonoBehaviour
 {
@@ -17,6 +18,9 @@ public class Character : MonoBehaviour
     [Header("Movement Settings")]
     [SerializeField] private float speed = 3f;              // units per second
     [SerializeField] private float waitTimeBetweenSteps = 0.5f; // delay after reaching a tile
+
+    [Header("Snake Appearance")]
+    [SerializeField] private Color snakeColor = Color.green; // set via interface
 
     // Internal state
     private Direction currentDirectionEnum = Direction.Up;   // initial facing
@@ -33,6 +37,7 @@ public class Character : MonoBehaviour
         if (hit != null && hit.CompareTag("Tile"))
         {
             CurrentTile = hit.gameObject;
+            ColorTile(CurrentTile);
         }
 
         // Ensure initial direction faces up
@@ -100,6 +105,7 @@ public class Character : MonoBehaviour
             if (Vector3.Distance(transform.position, targetPos) < 0.01f)
             {
                 CurrentTile = TargetTile;
+                ColorTile(CurrentTile);
                 TargetTile = null;
                 StartCoroutine(WaitBeforeNextStep());
             }
@@ -115,7 +121,6 @@ public class Character : MonoBehaviour
         Node nodeComp = CurrentTile.GetComponent<Node>();
         if (nodeComp.Connections.TryGetValue(currentDirectionEnum, out GameObject forwardTile))
         {
-            // Move continuously toward the forward tile
             Vector3 targetPos = new Vector3(forwardTile.transform.position.x,
                                             forwardTile.transform.position.y,
                                             transform.position.z);
@@ -125,6 +130,7 @@ public class Character : MonoBehaviour
             if (Vector3.Distance(transform.position, targetPos) < 0.01f)
             {
                 CurrentTile = forwardTile;
+                ColorTile(CurrentTile);
                 StartCoroutine(WaitBeforeNextStep());
             }
         }
@@ -132,6 +138,21 @@ public class Character : MonoBehaviour
         {
             // No tile ahead: halt movement (snake would die or reset here)
         }
+    }
+
+    /// <summary>
+    /// Colors the tile to the snake's color.
+    /// </summary>
+    private void ColorTile(GameObject tile)
+    {
+        SpriteRenderer rend = tile.GetComponentInChildren<SpriteRenderer>();
+        if (rend != null)
+            rend.material.color = snakeColor;
+
+        // Also update the Node's OriginalColor if needed
+        Node node = tile.GetComponent<Node>();
+        if (node != null)
+            node.OriginalColor = snakeColor;
     }
 
     private IEnumerator WaitBeforeNextStep()

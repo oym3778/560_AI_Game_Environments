@@ -97,7 +97,7 @@ GameObject:
   - component: {fileID: 3481734134146506097}
   - component: {fileID: -3539767835429658367}
   m_Layer: 0
-  m_Name: Character
+  m_Name: AI
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -173,6 +173,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   speed: 3
   waitTimeBetweenSteps: 0
+  snakeColor: {r: 0.6132076, g: 0, b: 0, a: 1}
 --- !u!1 &6132421268027428702
 GameObject:
   m_ObjectHideFlags: 0

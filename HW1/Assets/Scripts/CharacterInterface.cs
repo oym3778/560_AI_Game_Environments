@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.TextCore.Text;
 
 /// <summary>
 /// Provides an interface that allows the user to select tiles to perform pathfinding between.
@@ -8,71 +9,88 @@ using UnityEngine;
 /// </summary>
 public class CharacterInterface : MonoBehaviour
 {
-    // The tiles to peform pathfinding from and to.
-    // Initialized to null.
+    // User selection for pathfinding start/end
     private GameObject from = null;
     private GameObject to = null;
 
-    // Records whether search is currently being performed.
+    // Flag to prevent concurrent searches
     private bool searching = false;
 
-    // Links to the graph script.
+    // Reference to Graph
     private Graph graph;
 
-    // A prefab of the character.
-    public GameObject characterPrefab;
+    // Prefabs for AI and Player
+    [Header("Prefabs")]
+    public GameObject characterPrefab;  // AI snake prefab
+    public GameObject playerPrefab;     // Player snake prefab (can be same or different)
 
-    // The instantiated game object of the character.
-    private GameObject characterGO;
+    // Instances
+    private GameObject aiGO;
+    private Character aiCharacter;
+    private GameObject playerGO;
+    private Character playerCharacter;
 
-    // The script attached to the character.
-    private Character character;
-
-    // The time in seconds to wait between actions during visualization.
+    [Header("Visualization Settings")]
     public float waitTime = 1f;
-
-    // Allows the user to select what algorithm will be used for search.
     public SearchType searchType = SearchType.Dijkstra;
-
-    // Allows the user to select what heuristic A* uses during search.
     public HeuristicType heuristicType = HeuristicType.Uniform;
-
-    // Allows the user to select whether tiles will be colored.
     public bool colorTiles = true;
-
-    // Allows the user to select whether costs will be displayed.
     public bool displayCosts = false;
 
     // Start is called before the first frame update
     void Start()
     {
-        // Store the graph game object.
+        // Initialize graph
         GameObject graphGO = GameObject.Find("Graph");
-
-        // Grab the graph script.
         graph = graphGO.GetComponent<Graph>();
-
-        // Tell the graph script to generate a new graph.
         graph.makeGraph();
 
-        // Insantiate the character game object at the top left corner of the screen.
-        characterGO = Instantiate(characterPrefab, Camera.main.ScreenToWorldPoint(new Vector3(0, Screen.height, 1f)), Quaternion.identity);
+        // Compute graph dimensions
+        int width = 10 * graph.scale;
+        int height = 16 * graph.scale;
 
-        // Get the two renderers, one for the circle and the square.
-        // Turn both of their colors blue so the character is visible as it pathfinds.
-        SpriteRenderer[] characterRenderers = characterGO.GetComponentsInChildren<SpriteRenderer>();
-        foreach (SpriteRenderer characterRenderer in characterRenderers)
-            characterRenderer.material.color = Color.blue;
+        // --- Spawn AI at top-left (0,0) ---
+        GameObject aiStartTile = graph.getTile(0, 0);
+        aiGO = Instantiate(characterPrefab, aiStartTile.transform.position, Quaternion.identity);
+        SetupCharacter(aiGO, Color.red, aiStartTile);
+        aiCharacter = aiGO.GetComponent<Character>();
 
-        // Scale the character and place it in the middle of the top left square.
-        characterGO.transform.localScale = new Vector3(1 / (float)graph.scale * .6f, 1 / (float)graph.scale * .6f, 1f);
-        characterGO.transform.position += new Vector3((1 / (float)graph.scale) / 2f, ((1 / (float)graph.scale) / 2f) * -1f, 0f);
+        // --- Spawn Player at bottom-right (width-1, height-1) ---
+        GameObject playerStartTile = graph.getTile(width - 1, height - 1);
+        playerGO = Instantiate(playerPrefab != null ? playerPrefab : characterPrefab,
+                               playerStartTile.transform.position,
+                               Quaternion.identity);
+        SetupCharacter(playerGO, Color.blue, playerStartTile);
+        playerCharacter = playerGO.GetComponent<Character>();
 
-        // Grab the character script.
-        character = characterGO.GetComponent<Character>();
+        // Log spawning
+        Debug.Log($"AI spawned on tile: {aiStartTile.name}");
+        Debug.Log($"Player spawned on tile: {playerStartTile.name}");
+    }
 
-        // Set the character's current tile.
-        character.CurrentTile = graph.getTile(0, 0);
+    /// <summary>
+    /// Common initialization for a snake character.
+    /// </summary>
+    private void SetupCharacter(GameObject go, Color tint, GameObject startTile)
+    {
+        // Color the snake
+        foreach (var rend in go.GetComponentsInChildren<SpriteRenderer>())
+        {
+            rend.material.color = tint;
+        }
+
+        // Scale to fit tile
+        float invScale = 1f / graph.scale;
+        go.transform.localScale = new Vector3(invScale * 0.6f, invScale * 0.6f, 1f);
+
+        // Adjust spawn offset to be more centered
+        go.transform.position = new Vector3(
+            startTile.transform.position.x + (invScale * 0.5f),
+            startTile.transform.position.y - (invScale * 0.5f),
+            go.transform.position.z);
+
+        // Set the snake's current tile reference
+        go.GetComponent<Character>().CurrentTile = startTile;
     }
 
     // Update is called once per frame
@@ -101,7 +119,7 @@ public class CharacterInterface : MonoBehaviour
             if (hit.collider != null)
             {
                 // Set the from tile to the character's current tile.
-                from = character.CurrentTile;
+                from = aiCharacter.CurrentTile;
 
                 // Grab the renderer of the clicked tile.
                 SpriteRenderer renderer = hit.collider.gameObject.GetComponentInChildren<SpriteRenderer>();
@@ -149,7 +167,7 @@ public class CharacterInterface : MonoBehaviour
 
                     // Pass the final path to the character.
                     //character.Path = new Stack<NodeRecord>(path);
-                    character.Path = path;
+                    aiCharacter.Path = path;
                     // Search is now over.
                     searching = false;
                 }
