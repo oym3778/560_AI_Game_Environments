@@ -195,6 +195,7 @@ public class Dijkstra : MonoBehaviour
         {
             //path = new Stack<NodeRecord>();
             // --Work back along the path, accumulating connections.--
+            path.Push(current);
             while (current.node != start.GetComponent<Node>())
             {
                 if (current.node == null) { UnityEngine.Debug.Log("Current node looping back got null, something wrong with fromNode"); }

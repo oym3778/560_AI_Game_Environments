@@ -54,7 +54,7 @@ public class CharacterInterface : MonoBehaviour
         aiGO = Instantiate(characterPrefab, aiStartTile.transform.position, Quaternion.identity);
         SetupCharacter(aiGO, Color.red, aiStartTile);
         aiCharacter = aiGO.GetComponent<Character>();
-
+        aiCharacter.ReachedDestination = true;
         // --- Spawn Player at bottom-right (width-1, height-1) ---
         GameObject playerStartTile = graph.getTile(width - 1, height - 1);
         playerGO = Instantiate(playerPrefab != null ? playerPrefab : characterPrefab,
@@ -102,10 +102,11 @@ public class CharacterInterface : MonoBehaviour
             StartCoroutine(HandleInput());
         }
         */
-
-        if (!searching)
+        
+        if (!searching && aiCharacter.ReachedDestination)
         {
             GameObject targetTile = FindNearestUncoloredTile(aiCharacter.CurrentTile, aiCharacter.snakeColor);
+            //GameObject targetTile = GetRandomTile();
             //Debug.Log("A PATH  WAS FOUND");
             if (targetTile != null)
             {
@@ -116,39 +117,85 @@ public class CharacterInterface : MonoBehaviour
                 StartCoroutine(PerformSearch(from, to));
             }
         }
+        
     }
+    private GameObject GetRandomTile()
+    {
+        int width = 10 * graph.scale;
+        int height = 16 * graph.scale;
 
+        GameObject tile = null;
+
+        while (tile == null)
+        {
+            int randomX = Random.Range(0, width);
+            int randomY = Random.Range(0, height);
+            tile = graph.getTile(randomX, randomY);
+        }
+
+        return tile;
+    }
     private GameObject FindNearestUncoloredTile(GameObject startTile, Color aiColor)
     {
+        int width = 10 * graph.scale;
+        int height = 16 * graph.scale;
+
         Queue<GameObject> queue = new Queue<GameObject>();
         HashSet<GameObject> visited = new HashSet<GameObject>();
+
         queue.Enqueue(startTile);
         visited.Add(startTile);
 
         while (queue.Count > 0)
         {
             GameObject current = queue.Dequeue();
-            Node nodeComp = current.GetComponent<Node>();
-            SpriteRenderer rend = current.GetComponentInChildren<SpriteRenderer>();
 
-            if (rend != null && rend.material.color != aiColor)
+            Transform squareTf = current.transform.Find("Square");
+            SpriteRenderer squareRend = squareTf?.GetComponent<SpriteRenderer>();
+
+            if (squareRend != null && !ColorApproximatelyEqual(squareRend.color, aiColor))
             {
                 return current;
             }
 
-            foreach (var neighbor in nodeComp.Connections.Values)
+            // Add adjacent tiles (4-way)
+            Vector2Int coord = graph.getTileCoords(current);
+            Vector2Int[] directions = new Vector2Int[]
             {
-                if (!visited.Contains(neighbor))
+            new Vector2Int(0, 1),  // Up
+            new Vector2Int(0, -1), // Down
+            new Vector2Int(1, 0),  // Right
+            new Vector2Int(-1, 0)  // Left
+            };
+
+            foreach (var dir in directions)
+            {
+                int newX = coord.x + dir.x;
+                int newY = coord.y + dir.y;
+
+                if (newX < 0 || newY < 0 || newX >= width || newY >= height)
+                    continue;
+
+                GameObject neighbor = graph.getTile(newX, newY);
+                if (neighbor != null && !visited.Contains(neighbor))
                 {
-                    visited.Add(neighbor);
                     queue.Enqueue(neighbor);
+                    visited.Add(neighbor);
                 }
             }
         }
 
-        return null; // No uncolored tile found
-    }
+        // No uncolored tile found
+        return null;
 
+    }
+    private bool ColorApproximatelyEqual(Color a, Color b, float tolerance = 0.05f)
+    {
+        return Mathf.Abs(a.r - b.r) < tolerance &&
+               Mathf.Abs(a.g - b.g) < tolerance &&
+               Mathf.Abs(a.b - b.b) < tolerance &&
+               Mathf.Abs(a.a - b.a) < tolerance;
+    }
 
     // A coroutine that handles input from the user and starts search.
     private IEnumerator HandleInput ()
@@ -180,7 +227,7 @@ public class CharacterInterface : MonoBehaviour
                 {
                     // Set the to game object to the current tile.
                     to = hit.collider.gameObject;
-
+                    Debug.Log("TO TILE IS: " + to);
                     // Store that we are currently searching.
                     searching = true;
 

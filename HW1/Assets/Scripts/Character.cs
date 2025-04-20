@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.TextCore.Text;
 
 /// <summary>
 /// Moves a character like Snake: either AI‑driven along a Path,
@@ -8,11 +9,16 @@ using UnityEngine;
 /// </summary>
 public class Character : MonoBehaviour
 {
+    [SerializeField]
+    public Character enemy = null;
+
+    public int tilesColored = 0;
     // The tile the character is currently on.
     public GameObject CurrentTile { get; set; }
     private bool isMoving = false;
     // The queue of nodes to follow (AI only).
     public Stack<NodeRecord> Path { get; set; } = new Stack<NodeRecord>();
+    public HashSet<GameObject> visitedTiles = new HashSet<GameObject>();
 
     [Header("Role Settings")]
     [Tooltip("If true, uses AI pathing; otherwise WASD control")]
@@ -31,14 +37,40 @@ public class Character : MonoBehaviour
     private bool isWaiting = false;
     private GameObject TargetTile = null;
 
+    [SerializeField]
+    public bool ReachedDestination = true;
+
+
+
     void Start()
     {
+        
+        Character[] allCharacters = FindObjectsOfType<Character>();
+
+        foreach (var character in allCharacters)
+        {
+            if (character == this)
+                continue;
+
+            if (this.name.Contains("Player") && character.name.Contains("AI"))
+            {
+                enemy = character;
+                break;
+            }
+            else if (this.name.Contains("AI") && character.name.Contains("Player"))
+            {
+                enemy = character;
+                break;
+            }
+        }
+        
         // Find initial tile under the character
         Collider2D hit = Physics2D.OverlapPoint(transform.position);
         if (hit != null && hit.CompareTag("Tile"))
         {
             CurrentTile = hit.gameObject;
-            ColorTile(CurrentTile);
+            visitedTiles.Add(CurrentTile);
+            ColorTile(CurrentTile, enemy);
         }
 
         // Default facing up
@@ -53,10 +85,12 @@ public class Character : MonoBehaviour
         if (isAI)
         {
             // AI behavior: follow path if any, else free‐move
-            if (Path.Count > 0 || TargetTile != null)
+            if ((Path.Count > 0 || TargetTile != null))
                 FollowPath();
             else
-                ContinueFreeMovement();
+            {
+                //ContinueFreeMovement();
+            }        
         }
         else
         {
@@ -127,7 +161,8 @@ public class Character : MonoBehaviour
 
         transform.position = endPos;
         CurrentTile = nextTile;
-        ColorTile(CurrentTile);
+        visitedTiles.Add(CurrentTile);
+        ColorTile(CurrentTile, enemy);
 
         yield return new WaitForSeconds(waitTimeBetweenSteps);
         isMoving = false;
@@ -138,8 +173,10 @@ public class Character : MonoBehaviour
     /// </summary>
     private void FollowPath()
     {
+
         if (TargetTile == null && Path.Count > 0)
         {
+            ReachedDestination = false;
             // pop next node
             NodeRecord nextRecord = Path.Pop();
             TargetTile = nextRecord.Tile;
@@ -160,6 +197,8 @@ public class Character : MonoBehaviour
                        currentDirectionEnum == Direction.Up ? 90f :
                        currentDirectionEnum == Direction.Left ? 180f : -90f;
             transform.rotation = Quaternion.Euler(0f, 0f, zRot);
+
+           
         }
 
         if (TargetTile != null)
@@ -173,11 +212,20 @@ public class Character : MonoBehaviour
             if (Vector3.Distance(transform.position, tp) < 0.01f)
             {
                 CurrentTile = TargetTile;
-                ColorTile(CurrentTile);
+                visitedTiles.Add(CurrentTile);
+                ColorTile(CurrentTile, enemy);
                 TargetTile = null;
                 StartCoroutine(WaitBeforeNextStep());
             }
+
+            if (TargetTile == null && Path.Count == 0)
+            {
+                ReachedDestination = true;
+                Path.Clear();
+            }
         }
+
+  
     }
 
     /// <summary>
@@ -195,19 +243,49 @@ public class Character : MonoBehaviour
             if (Vector3.Distance(transform.position, tp) < 0.01f)
             {
                 CurrentTile = forwardTile;
-                ColorTile(CurrentTile);
+                visitedTiles.Add(CurrentTile);
+                ColorTile(CurrentTile, enemy);
                 StartCoroutine(WaitBeforeNextStep());
             }
         }
     }
 
     /// <summary>Color the tile the snake just stepped on.</summary>
-    private void ColorTile(GameObject tile)
+    private void ColorTile(GameObject tile, Character otherCharacter)
     {
-        var rend = tile.GetComponentInChildren<SpriteRenderer>();
-        if (rend != null) rend.material.color = snakeColor;
-        var node = tile.GetComponent<Node>();
-        if (node != null) node.OriginalColor = snakeColor;
+        SpriteRenderer currentRenderer = tile.transform.Find("Square")?.GetComponent<SpriteRenderer>();
+        Color previousColor = currentRenderer != null ? currentRenderer.color : Color.clear;
+
+        // If tile was previously colored by the other character
+        if (otherCharacter != null && previousColor == otherCharacter.snakeColor)
+        {
+            otherCharacter.tilesColored--;
+        }
+
+        // If tile wasn't already your color, you're gaining control
+        if (previousColor != snakeColor)
+        {
+            tilesColored++;
+        }
+
+        // Color the tile
+        if (currentRenderer != null)
+        {
+            currentRenderer.color = snakeColor;
+        }
+
+        foreach (var rend in tile.GetComponentsInChildren<SpriteRenderer>())
+        {
+            if (rend.gameObject.name == "Square")
+                continue;
+            rend.color = snakeColor;
+            rend.material.color = snakeColor;
+        }
+
+        // Record this color in the Node for resets
+        Node node = tile.GetComponent<Node>();
+        if (node != null)
+            node.OriginalColor = snakeColor;
     }
 
     private IEnumerator WaitBeforeNextStep()

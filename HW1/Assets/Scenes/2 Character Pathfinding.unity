@@ -247,7 +247,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   tile: {fileID: 7082161413745446940, guid: 8b12cf89ca8eae143bf6f79e4a3fd2ea, type: 3}
   scale: 1
-  obstacleProbability: 0.2
+  obstacleProbability: 0
 --- !u!4 &625743947
 Transform:
   m_ObjectHideFlags: 0
@@ -276,10 +276,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   characterPrefab: {fileID: 6132421267075420577, guid: 4e084a66880039b429d3857af2079599, type: 3}
+  playerPrefab: {fileID: 6132421267075420577, guid: c91e48b9bad942c45aa5b68947254957, type: 3}
   waitTime: 0
   searchType: 1
   heuristicType: 1
-  colorTiles: 1
+  colorTiles: 0
   displayCosts: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:

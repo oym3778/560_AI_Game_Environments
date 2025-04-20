@@ -42,7 +42,7 @@ public class Graph : MonoBehaviour
         // Create the first tile at (0,0).
         // We never want an obstacle here because it is where we will spawn the character.
         createTile(0, 0);
-
+        //createTile(10 * scale - 1, 16 * scale - 1);
         // Loop through the rows.
         for (int i = 0; i < (10 * scale); i++)
         {
@@ -73,12 +73,28 @@ public class Graph : MonoBehaviour
             }
         }
     }
+    public Vector2Int getTileCoords(GameObject target)
+    {
+        int width = 10 * scale;
+        int height = 16 * scale;
 
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                if (getTile(x, y) == target)
+                    return new Vector2Int(x, y);
+            }
+        }
+
+        return new Vector2Int(-1, -1); // Not found
+    }
     /// <summary>
     /// Resets all the tiles to their original color once pathfinding is finished.
     /// </summary>
     public void resetColor ()
     {
+        
         // Loops through each tile game object in the graph array.
         foreach (GameObject tile in graph)
         {
@@ -101,6 +117,7 @@ public class Graph : MonoBehaviour
                 text.text = "";
             }
         }
+        
     }
 
     // Returns the tile at a given (x,y) position.

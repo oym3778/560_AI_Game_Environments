@@ -171,9 +171,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6b362ee7e92ae744a8661539fe3811d3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  speed: 3
+  enemy: {fileID: 0}
+  tilesColored: 0
+  isAI: 1
+  speed: 7
   waitTimeBetweenSteps: 0
   snakeColor: {r: 0.6132076, g: 0, b: 0, a: 1}
+  ReachedDestination: 0
 --- !u!1 &6132421268027428702
 GameObject:
   m_ObjectHideFlags: 0
