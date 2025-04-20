@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.TextCore.Text;
 
@@ -9,9 +10,12 @@ using UnityEngine.TextCore.Text;
 /// </summary>
 public class Character : MonoBehaviour
 {
+
+    [SerializeField] private GameObject winnerText;
+
     [SerializeField]
     public Character enemy = null;
-
+    private int totalTiles;
     public int tilesColored = 0;
     // The tile the character is currently on.
     public GameObject CurrentTile { get; set; }
@@ -44,7 +48,11 @@ public class Character : MonoBehaviour
 
     void Start()
     {
-        
+        if (winnerText != null)
+            winnerText.gameObject.SetActive(false);
+
+        totalTiles = FindObjectsOfType<Node>().Length;
+
         Character[] allCharacters = FindObjectsOfType<Character>();
 
         foreach (var character in allCharacters)
@@ -253,6 +261,15 @@ public class Character : MonoBehaviour
     /// <summary>Color the tile the snake just stepped on.</summary>
     private void ColorTile(GameObject tile, Character otherCharacter)
     {
+        // Check for win condition: colored more than 80% of total tiles
+        Debug.Log("totalTiles " + totalTiles);
+        Debug.Log(this.name + "tilesColored " + tilesColored + " >= " + Mathf.CeilToInt(0.8f * totalTiles/2));
+        if (tilesColored >= Mathf.CeilToInt(0.8f * totalTiles/2))
+        {
+            Debug.Log(this.name + " Won with " + tilesColored);
+            SetAllTilesToGold();
+        }
+
         SpriteRenderer currentRenderer = tile.transform.Find("Square")?.GetComponent<SpriteRenderer>();
         Color previousColor = currentRenderer != null ? currentRenderer.color : Color.clear;
 
@@ -286,6 +303,40 @@ public class Character : MonoBehaviour
         Node node = tile.GetComponent<Node>();
         if (node != null)
             node.OriginalColor = snakeColor;
+    }
+
+    private void SetAllTilesToGold()
+    {
+        //Color victoryColor = new Color(0.6f, 0.4f, 0.8f); // Soft purple
+        Color gold = new Color(0.6f, 0.4f, 0.8f); // Soft purple
+
+        Node[] allNodes = FindObjectsOfType<Node>();
+        foreach (Node node in allNodes)
+        {
+            // Only recolor tiles that belong to this character
+            SpriteRenderer sr = node.transform.Find("Square")?.GetComponent<SpriteRenderer>();
+            if (sr != null && sr.color == snakeColor)
+            {
+                sr.color = gold;
+
+                foreach (var rend in node.GetComponentsInChildren<SpriteRenderer>())
+                {
+                    if (rend.gameObject.name == "Square") continue;
+                    rend.color = gold;
+                    rend.material.color = gold;
+                }
+
+                node.OriginalColor = gold;
+            }
+        }
+        /*
+        // Display the winner's name
+        if (winnerText != null)
+        {
+            winnerText.text = $"{gameObject.name} Wins!";
+            winnerText.gameObject.SetActive(true);
+        }
+        */
     }
 
     private IEnumerator WaitBeforeNextStep()
