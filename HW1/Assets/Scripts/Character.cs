@@ -3,36 +3,37 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Moves a character like Snake: follows a precomputed path when available,
-/// otherwise continues moving in its current facing direction,
-/// and colors each tile it visits.
+/// Moves a character like Snake: either AI‑driven along a Path,
+/// or player‑driven via WASD input. Colors each tile it visits.
 /// </summary>
 public class Character : MonoBehaviour
 {
     // The tile the character is currently on.
     public GameObject CurrentTile { get; set; }
-
-    // The stack of path nodes to follow (if any).
+    private bool isMoving = false;
+    // The queue of nodes to follow (AI only).
     public Stack<NodeRecord> Path { get; set; } = new Stack<NodeRecord>();
 
-    [Header("Movement Settings")]
-    [SerializeField] private float speed = 3f;              // units per second
-    [SerializeField] private float waitTimeBetweenSteps = 0.5f; // delay after reaching a tile
+    [Header("Role Settings")]
+    [Tooltip("If true, uses AI pathing; otherwise WASD control")]
+    [SerializeField] public bool isAI = true; // expose in Inspector :contentReference[oaicite:0]{index=0}
 
-    [Header("Snake Appearance")]
-    [SerializeField] private Color snakeColor = Color.green; // set via interface
+    [Header("Movement Settings")]
+    [SerializeField] private float speed = 3f;              // units/sec
+    [SerializeField] private float waitTimeBetweenSteps = 0.5f; // delay after stepping
+
+    [Header("Appearance")]
+    [SerializeField] public Color snakeColor = Color.green; // tint color
 
     // Internal state
-    private Direction currentDirectionEnum = Direction.Up;   // initial facing
-    private Vector3 currentDirection = Vector3.up;          // movement vector
+    private Direction currentDirectionEnum = Direction.Up;
+    private Vector3 currentDirection = Vector3.up;
     private bool isWaiting = false;
-
-    // Target tile when following a path
     private GameObject TargetTile = null;
 
     void Start()
     {
-        // Initialize CurrentTile by detecting the tile under the character at start
+        // Find initial tile under the character
         Collider2D hit = Physics2D.OverlapPoint(transform.position);
         if (hit != null && hit.CompareTag("Tile"))
         {
@@ -40,7 +41,7 @@ public class Character : MonoBehaviour
             ColorTile(CurrentTile);
         }
 
-        // Ensure initial direction faces up
+        // Default facing up
         currentDirectionEnum = Direction.Up;
         currentDirection = Vector3.up;
     }
@@ -49,31 +50,102 @@ public class Character : MonoBehaviour
     {
         if (isWaiting) return;
 
-        // If we have a path, follow it
-        if (Path.Count > 0 || TargetTile != null)
+        if (isAI)
         {
-            FollowPath();
+            // AI behavior: follow path if any, else free‐move
+            if (Path.Count > 0 || TargetTile != null)
+                FollowPath();
+            else
+                ContinueFreeMovement();
         }
         else
         {
-            // No path: free movement in current direction (like Snake)
-            ContinueFreeMovement();
+            // Player behavior: WASD input stepping :contentReference[oaicite:1]{index=1}
+            if (HandlePlayerInput())
+            {
+            }
+            else
+            {
+                ContinueFreeMovement();
+            }
+
         }
     }
 
+    private bool HandlePlayerInput()
+    {
+        if (isMoving) return false;
+
+        Direction? pressed = null;
+        if (Input.GetKeyDown(KeyCode.W)) pressed = Direction.Up;
+        else if (Input.GetKeyDown(KeyCode.S)) pressed = Direction.Down;
+        else if (Input.GetKeyDown(KeyCode.A)) pressed = Direction.Left;
+        else if (Input.GetKeyDown(KeyCode.D)) pressed = Direction.Right;
+
+        if (pressed.HasValue)
+        {
+            Node nodeComp = CurrentTile.GetComponent<Node>();
+            if (nodeComp.Connections.TryGetValue(pressed.Value, out GameObject nextTile))
+            {
+                StartCoroutine(MoveToTile(nextTile, pressed.Value));
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private IEnumerator MoveToTile(GameObject nextTile, Direction direction)
+    {
+        isMoving = true;
+
+        Vector3 startPos = transform.position;
+        Vector3 endPos = new Vector3(nextTile.transform.position.x, nextTile.transform.position.y, transform.position.z);
+        float elapsed = 0f;
+        float duration = Vector3.Distance(startPos, endPos) / speed;
+
+        // Update direction and rotation
+        currentDirectionEnum = direction;
+        currentDirection = direction switch
+        {
+            Direction.Up => Vector3.up,
+            Direction.Down => Vector3.down,
+            Direction.Left => Vector3.left,
+            Direction.Right => Vector3.right,
+            _ => currentDirection
+        };
+        float zRot = currentDirectionEnum == Direction.Right ? 0f :
+                     currentDirectionEnum == Direction.Up ? 90f :
+                     currentDirectionEnum == Direction.Left ? 180f : -90f;
+        transform.rotation = Quaternion.Euler(0f, 0f, zRot);
+
+        while (elapsed < duration)
+        {
+            transform.position = Vector3.Lerp(startPos, endPos, elapsed / duration);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        transform.position = endPos;
+        CurrentTile = nextTile;
+        ColorTile(CurrentTile);
+
+        yield return new WaitForSeconds(waitTimeBetweenSteps);
+        isMoving = false;
+    }
+
     /// <summary>
-    /// Moves the character along the precomputed Path.
+    /// Moves the AI character along its precomputed path.
     /// </summary>
     private void FollowPath()
     {
-        // If no target yet, pop next node
         if (TargetTile == null && Path.Count > 0)
         {
+            // pop next node
             NodeRecord nextRecord = Path.Pop();
             TargetTile = nextRecord.Tile;
 
-            // Determine direction from CurrentTile to TargetTile
-            Vector3 delta = TargetTile.transform.position - CurrentTile.transform.position;
+            // compute direction & rotate
+            var delta = TargetTile.transform.position - CurrentTile.transform.position;
             if (Mathf.Abs(delta.x) > Mathf.Abs(delta.y))
             {
                 currentDirectionEnum = (delta.x > 0) ? Direction.Right : Direction.Left;
@@ -84,25 +156,21 @@ public class Character : MonoBehaviour
                 currentDirectionEnum = (delta.y > 0) ? Direction.Up : Direction.Down;
                 currentDirection = (delta.y > 0) ? Vector3.up : Vector3.down;
             }
-
-            // Rotate sprite to face new direction
-            float zRot = currentDirectionEnum == Direction.Right ? 0f :
-                         currentDirectionEnum == Direction.Up ? 90f :
-                         currentDirectionEnum == Direction.Left ? 180f :
-                                                                 -90f;
+            var zRot = currentDirectionEnum == Direction.Right ? 0f :
+                       currentDirectionEnum == Direction.Up ? 90f :
+                       currentDirectionEnum == Direction.Left ? 180f : -90f;
             transform.rotation = Quaternion.Euler(0f, 0f, zRot);
         }
 
-        // Move toward the TargetTile
         if (TargetTile != null)
         {
-            Vector3 targetPos = new Vector3(TargetTile.transform.position.x,
-                                            TargetTile.transform.position.y,
-                                            transform.position.z);
-            transform.position = Vector3.MoveTowards(transform.position, targetPos, speed * Time.deltaTime);
+            // move toward TargetTile
+            Vector3 tp = new Vector3(TargetTile.transform.position.x,
+                                     TargetTile.transform.position.y,
+                                     transform.position.z);
+            transform.position = Vector3.MoveTowards(transform.position, tp, speed * Time.deltaTime);
 
-            // Upon arrival, update CurrentTile and clear TargetTile
-            if (Vector3.Distance(transform.position, targetPos) < 0.01f)
+            if (Vector3.Distance(transform.position, tp) < 0.01f)
             {
                 CurrentTile = TargetTile;
                 ColorTile(CurrentTile);
@@ -113,46 +181,33 @@ public class Character : MonoBehaviour
     }
 
     /// <summary>
-    /// Continues free movement in the current direction.
+    /// Continues free AI movement when no path is set.
     /// </summary>
     private void ContinueFreeMovement()
     {
-        // Check that there is a tile ahead before moving
         Node nodeComp = CurrentTile.GetComponent<Node>();
         if (nodeComp.Connections.TryGetValue(currentDirectionEnum, out GameObject forwardTile))
         {
-            Vector3 targetPos = new Vector3(forwardTile.transform.position.x,
-                                            forwardTile.transform.position.y,
-                                            transform.position.z);
-            transform.position = Vector3.MoveTowards(transform.position, targetPos, speed * Time.deltaTime);
-
-            // Upon arrival, update CurrentTile and pause
-            if (Vector3.Distance(transform.position, targetPos) < 0.01f)
+            Vector3 tp = new Vector3(forwardTile.transform.position.x,
+                                     forwardTile.transform.position.y,
+                                     transform.position.z);
+            transform.position = Vector3.MoveTowards(transform.position, tp, speed * Time.deltaTime);
+            if (Vector3.Distance(transform.position, tp) < 0.01f)
             {
                 CurrentTile = forwardTile;
                 ColorTile(CurrentTile);
                 StartCoroutine(WaitBeforeNextStep());
             }
         }
-        else
-        {
-            // No tile ahead: halt movement (snake would die or reset here)
-        }
     }
 
-    /// <summary>
-    /// Colors the tile to the snake's color.
-    /// </summary>
+    /// <summary>Color the tile the snake just stepped on.</summary>
     private void ColorTile(GameObject tile)
     {
-        SpriteRenderer rend = tile.GetComponentInChildren<SpriteRenderer>();
-        if (rend != null)
-            rend.material.color = snakeColor;
-
-        // Also update the Node's OriginalColor if needed
-        Node node = tile.GetComponent<Node>();
-        if (node != null)
-            node.OriginalColor = snakeColor;
+        var rend = tile.GetComponentInChildren<SpriteRenderer>();
+        if (rend != null) rend.material.color = snakeColor;
+        var node = tile.GetComponent<Node>();
+        if (node != null) node.OriginalColor = snakeColor;
     }
 
     private IEnumerator WaitBeforeNextStep()

@@ -96,11 +96,59 @@ public class CharacterInterface : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        /*
         if (Input.GetMouseButtonDown(0) && !searching)
         {
             StartCoroutine(HandleInput());
         }
+        */
+
+        if (!searching)
+        {
+            GameObject targetTile = FindNearestUncoloredTile(aiCharacter.CurrentTile, aiCharacter.snakeColor);
+            //Debug.Log("A PATH  WAS FOUND");
+            if (targetTile != null)
+            {
+                Debug.Log("A PATH  WAS FOUND");
+                from = aiCharacter.CurrentTile;
+                to = targetTile;
+                searching = true;
+                StartCoroutine(PerformSearch(from, to));
+            }
+        }
     }
+
+    private GameObject FindNearestUncoloredTile(GameObject startTile, Color aiColor)
+    {
+        Queue<GameObject> queue = new Queue<GameObject>();
+        HashSet<GameObject> visited = new HashSet<GameObject>();
+        queue.Enqueue(startTile);
+        visited.Add(startTile);
+
+        while (queue.Count > 0)
+        {
+            GameObject current = queue.Dequeue();
+            Node nodeComp = current.GetComponent<Node>();
+            SpriteRenderer rend = current.GetComponentInChildren<SpriteRenderer>();
+
+            if (rend != null && rend.material.color != aiColor)
+            {
+                return current;
+            }
+
+            foreach (var neighbor in nodeComp.Connections.Values)
+            {
+                if (!visited.Contains(neighbor))
+                {
+                    visited.Add(neighbor);
+                    queue.Enqueue(neighbor);
+                }
+            }
+        }
+
+        return null; // No uncolored tile found
+    }
+
 
     // A coroutine that handles input from the user and starts search.
     private IEnumerator HandleInput ()
@@ -188,5 +236,37 @@ public class CharacterInterface : MonoBehaviour
 
         yield return null;
     }
+
+
+
+    private IEnumerator PerformSearch(GameObject from, GameObject to)
+    {
+        Stack<NodeRecord> path = new Stack<NodeRecord>();
+
+        if (searchType == SearchType.Dijkstra)
+        {
+            yield return StartCoroutine(Dijkstra.search(from, to, waitTime, colorTiles, displayCosts, path));
+        }
+        else if (searchType == SearchType.AStar)
+        {
+            if (heuristicType == HeuristicType.Uniform)
+            {
+                yield return StartCoroutine(AStar.search(from, to, AStar.Uniform, waitTime, colorTiles, displayCosts, path));
+            }
+            else if (heuristicType == HeuristicType.Manhattan)
+            {
+                yield return StartCoroutine(AStar.search(from, to, AStar.Manhattan, waitTime, colorTiles, displayCosts, path));
+            }
+            else if (heuristicType == HeuristicType.CrossProduct)
+            {
+                yield return StartCoroutine(AStar.search(from, to, AStar.CrossProduct, waitTime, colorTiles, displayCosts, path));
+            }
+        }
+
+        aiCharacter.Path = path;
+        Debug.Log($"Assigned path with {path.Count} nodes.");
+        searching = false;
+    }
+
 }
 
